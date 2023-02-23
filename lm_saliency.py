@@ -54,7 +54,7 @@ def register_embedding_list_hook(model, embeddings_list):
 def register_embedding_gradient_hooks(model, embeddings_gradients):
     def hook_layers(module, grad_in, grad_out):
         embeddings_gradients.append(grad_out[0].detach().cpu().numpy())
-    embedding_layer = model.transformer.wte
+    embedding_layer = model.biogpt.embed_tokens
     hook = embedding_layer.register_backward_hook(hook_layers)
     return hook
 
