@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 plt.rcParams['figure.figsize'] = [10, 10]
 
 config = GPT2Config.from_pretrained("gpt2")
-config = BioGptConfig.from_pretrained("biogpt")
+config = BioGptConfig.from_pretrained("microsoft/biogpt")
 VOCAB_SIZE = config.vocab_size
 
 
