@@ -47,7 +47,7 @@ def register_embedding_list_hook(model, embeddings_list):
     def forward_hook(module, inputs, output):
         embeddings_list.append(output.squeeze(0).clone().cpu().detach().numpy())
     # embedding_layer = model.transformer.wte
-    embedding_layer = model.embed_tokens
+    embedding_layer = model.biogpt.embed_tokens
     handle = embedding_layer.register_forward_hook(forward_hook)
     return handle
 
