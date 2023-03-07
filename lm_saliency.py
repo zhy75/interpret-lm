@@ -49,10 +49,9 @@ def register_embedding_list_hook(model, embeddings_list):
     if model.name_or_path == "microsoft/biogpt":
         embedding_layer = model.biogpt.embed_tokens
     else:
-        # embedding_layer = model.transformer.wte
-        embedding_layer = model.embeddings.position_embeddings
+        embedding_layer = model.transformer.wte
+        # embedding_layer = model.embeddings.position_embeddings
     handle = embedding_layer.register_forward_hook(forward_hook)
-    # handle = embedding_layer.register_full_forward_hook(forward_hook)
     return handle
 
 def register_embedding_gradient_hooks(model, embeddings_gradients):
@@ -61,10 +60,9 @@ def register_embedding_gradient_hooks(model, embeddings_gradients):
     if model.name_or_path == "microsoft/biogpt":
         embedding_layer = model.biogpt.embed_tokens
     else:
-        # embedding_layer = model.transformer.wte
-        embedding_layer = model.embeddings.position_embeddings
+        embedding_layer = model.transformer.wte
+        # embedding_layer = model.embeddings.position_embeddings
     hook = embedding_layer.register_backward_hook(hook_layers)
-    # hook = embedding_layer.register_full_backward_hook(hook_layers)
     return hook
 
 def saliency(model, input_ids, input_mask, batch=0, correct=None, foil=None):
@@ -79,25 +77,34 @@ def saliency(model, input_ids, input_mask, batch=0, correct=None, foil=None):
     
     if correct is None:
         correct = input_ids[-1]
-    # input_ids = input_ids[:-1]
-    # input_mask = input_mask[:-1]
-    # input_ids = torch.tensor(input_ids, dtype=torch.long).to(model.device)
-    # input_mask = torch.tensor(input_mask, dtype=torch.long).to(model.device)
-    # input_ids = input_ids.clone().detach().requires_grad_(True).to(model.device)
-    # input_mask = input_mask.clone().detach().requires_grad_(True).to(model.device)
-    input_ids = input_ids.clone().detach().to(model.device)
-    input_mask = input_mask.clone().detach().to(model.device)
+    input_ids = input_ids[:-1]
+    input_mask = input_mask[:-1]
+    if model.name_or_path == "microsoft/biogpt":
+        input_ids = torch.tensor([input_ids], dtype=torch.long).to(model.device)
+        input_mask = torch.tensor([input_mask], dtype=torch.long).to(model.device)
+    else:
+        input_ids = torch.tensor(input_ids, dtype=torch.long).to(model.device)
+        input_mask = torch.tensor(input_mask, dtype=torch.long).to(model.device)
 
     model.zero_grad()
 
-    A = model(input_ids, attention_mask=input_mask)
-    
-    print(A.logits[-1][correct].size())
+    if model.name_or_path == "microsoft/biogpt":
+        A = model(input_ids[:, :-1], attention_mask=input_mask[:, :-1])
+    else:
+        A = model(input_ids, attention_mask=input_mask)
 
     if foil is not None and correct != foil:
-        (A.logits[-1][correct]-A.logits[-1][foil]).backward()
+        if model.name_or_path == "microsoft/biogpt":
+            (A.logits[-1][-1][correct]-A.logits[-1][-1][foil]).backward()
+        else:
+            (A.logits[-1][correct]-A.logits[-1][foil]).backward()
+
     else:
-        (A.logits[-1][correct]).backward()
+        if model.name_or_path == "microsoft/biogpt":
+            (A.logits[-1][-1][correct]).backward()
+        else:
+            (A.logits[-1][correct]).backward()
+
     handle.remove()
     hook.remove()
 
