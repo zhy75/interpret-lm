@@ -12,6 +12,8 @@ from transformers import (
     BioGptTokenizer,
     BioGptModel,
     BioGptForCausalLM,
+    DistilBertModel,
+    DistilBertTokenizer, 
 )
 
 import matplotlib as mpl
@@ -48,9 +50,10 @@ def register_embedding_list_hook(model, embeddings_list):
         embeddings_list.append(output.squeeze(0).clone().cpu().detach().numpy())
     if model.name_or_path == "microsoft/biogpt":
         embedding_layer = model.biogpt.embed_tokens
+    elif model.name_or_path == "distilbert-base-cased-distilled-squad":
+        embedding_layer = model.embeddings.word_embeddings
     else:
         embedding_layer = model.transformer.wte
-        # embedding_layer = model.embeddings.position_embeddings
     handle = embedding_layer.register_forward_hook(forward_hook)
     return handle
 
@@ -59,9 +62,10 @@ def register_embedding_gradient_hooks(model, embeddings_gradients):
         embeddings_gradients.append(grad_out[0].detach().cpu().numpy())
     if model.name_or_path == "microsoft/biogpt":
         embedding_layer = model.biogpt.embed_tokens
+    elif model.name_or_path == "distilbert-base-cased-distilled-squad":
+        embedding_layer = model.embeddings.word_embeddings
     else:
         embedding_layer = model.transformer.wte
-        # embedding_layer = model.embeddings.position_embeddings
     hook = embedding_layer.register_backward_hook(hook_layers)
     return hook
 
@@ -79,7 +83,8 @@ def saliency(model, input_ids, input_mask, batch=0, correct=None, foil=None):
         correct = input_ids[-1]
     input_ids = input_ids[:-1]
     input_mask = input_mask[:-1]
-    if model.name_or_path == "microsoft/biogpt":
+
+    if model.name_or_path == "microsoft/biogpt" or model.name_or_path == "distilbert-base-cased-distilled-squad":
         input_ids = torch.tensor([input_ids], dtype=torch.long).to(model.device)
         input_mask = torch.tensor([input_mask], dtype=torch.long).to(model.device)
     else:
@@ -88,7 +93,7 @@ def saliency(model, input_ids, input_mask, batch=0, correct=None, foil=None):
 
     model.zero_grad()
 
-    if model.name_or_path == "microsoft/biogpt":
+    if model.name_or_path == "microsoft/biogpt" or model.name_or_path == "distilbert-base-cased-distilled-squad":
         A = model(input_ids[:, :-1], attention_mask=input_mask[:, :-1])
     else:
         A = model(input_ids, attention_mask=input_mask)
@@ -96,12 +101,15 @@ def saliency(model, input_ids, input_mask, batch=0, correct=None, foil=None):
     if foil is not None and correct != foil:
         if model.name_or_path == "microsoft/biogpt":
             (A.logits[-1][-1][correct]-A.logits[-1][-1][foil]).backward()
+        elif model.name_or_path == "distilbert-base-cased-distilled-squad":
+            (A.last_hidden_state[-1][-1][correct]-A.last_hidden_state[-1][-1][foil]).backward()
         else:
             (A.logits[-1][correct]-A.logits[-1][foil]).backward()
-
     else:
         if model.name_or_path == "microsoft/biogpt":
             (A.logits[-1][-1][correct]).backward()
+        elif model.name_or_path == "distilbert-base-cased-distilled-squad":
+            (A.last_hidden_state[-1][-1][correct]).backward()
         else:
             (A.logits[-1][correct]).backward()
 
