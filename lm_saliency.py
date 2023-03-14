@@ -92,10 +92,7 @@ def saliency(model, input_ids, input_mask, batch=0, correct=None, foil=None):
 
     model.zero_grad()
 
-    if model.name_or_path == "microsoft/biogpt" or model.name_or_path == "distilbert-base-cased-distilled-squad":
-        A = model(input_ids[:, :-1], attention_mask=input_mask[:, :-1])
-    else:
-        A = model(input_ids, attention_mask=input_mask)
+    A = model(input_ids, attention_mask=input_mask)
 
     if foil is not None and correct != foil:
         if model.name_or_path == "microsoft/biogpt":
@@ -119,7 +116,7 @@ def saliency(model, input_ids, input_mask, batch=0, correct=None, foil=None):
 
 def input_x_gradient(grads, embds, normalize=False):
     input_grad = np.sum(grads * embds, axis=-1).squeeze()
-
+    
     if normalize:
         norm = np.linalg.norm(input_grad, ord=1)
         input_grad /= norm
@@ -181,7 +178,6 @@ def visualize(attention, tokenizer, input_ids, gold=None, normalize=False, print
         for i, g in enumerate(gold):
             if g == 1:
                 tokens[i] = "**" + tokens[i] + "**"
-
     # Normalize to [-1, 1]
     if normalize:
         a,b = min(attention), max(attention)
